@@ -3,18 +3,29 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Meeting, DailyNote, VoiceChat } from './types';
+import { Meeting, DailyNote, VoiceChat, ChatSession } from './types';
 
 const STORAGE_KEYS = {
   MEETINGS: 'smartassist_meetings',
   NOTES: 'smartassist_notes',
-  VOICE_HISTORY: 'smartassist_voice_history',
+  CHAT_SESSIONS: 'smartassist_chat_sessions',
 };
 
 export const storageService = {
   getMeetings: (): Meeting[] => {
     const data = localStorage.getItem(STORAGE_KEYS.MEETINGS);
-    return data ? JSON.parse(data) : [];
+    if (!data) return [];
+    try {
+      const meetings: Meeting[] = JSON.parse(data);
+      // Ensure existing meetings have a priority
+      return meetings.map(m => ({
+        ...m,
+        priority: m.priority || 'Standard'
+      }));
+    } catch (e) {
+      console.error('Failed to parse meetings', e);
+      return [];
+    }
   },
   saveMeetings: (meetings: Meeting[]) => {
     localStorage.setItem(STORAGE_KEYS.MEETINGS, JSON.stringify(meetings));
@@ -26,11 +37,11 @@ export const storageService = {
   saveNotes: (notes: DailyNote[]) => {
     localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
   },
-  getVoiceHistory: (): VoiceChat[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.VOICE_HISTORY);
+  getChatSessions: (): ChatSession[] => {
+    const data = localStorage.getItem(STORAGE_KEYS.CHAT_SESSIONS);
     return data ? JSON.parse(data) : [];
   },
-  saveVoiceHistory: (history: VoiceChat[]) => {
-    localStorage.setItem(STORAGE_KEYS.VOICE_HISTORY, JSON.stringify(history));
+  saveChatSessions: (sessions: ChatSession[]) => {
+    localStorage.setItem(STORAGE_KEYS.CHAT_SESSIONS, JSON.stringify(sessions));
   },
 };

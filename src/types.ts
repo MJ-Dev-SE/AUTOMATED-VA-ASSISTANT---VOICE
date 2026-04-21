@@ -7,6 +7,8 @@ export type MeetingType = 'Video Call' | 'In-Person' | 'Phone Call';
 
 export type MeetingStatus = 'UPCOMING' | 'IN_PROGRESS' | 'DONE';
 
+export type MeetingPriority = 'Urgent' | 'Important' | 'Standard' | 'Personal';
+
 export interface ActionItem {
   id: string;
   text: string;
@@ -27,6 +29,7 @@ export interface Meeting {
   attendees: string[];
   description: string;
   type: MeetingType;
+  priority: MeetingPriority;
   status: MeetingStatus;
   proceedings?: MeetingProceedings;
   createdAt: string;
@@ -47,5 +50,12 @@ export interface VoiceChat {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  timestamp: string;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  messages: VoiceChat[];
   timestamp: string;
 }

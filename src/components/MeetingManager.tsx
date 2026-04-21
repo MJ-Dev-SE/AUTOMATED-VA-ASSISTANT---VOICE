@@ -16,10 +16,14 @@ import {
   Search, 
   Calendar as CalendarIcon,
   X,
-  ChevronDown
+  ChevronDown,
+  AlertTriangle,
+  Zap,
+  Target,
+  User as UserIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Meeting, MeetingType, MeetingStatus } from '../types';
+import { Meeting, MeetingType, MeetingStatus, MeetingPriority } from '../types';
 import { cn, formatDate, formatTime } from '../lib/utils';
 
 interface MeetingManagerProps {
@@ -30,7 +34,8 @@ interface MeetingManagerProps {
 
 export default function MeetingManager({ meetings, setMeetings, currentTime }: MeetingManagerProps) {
   const [showForm, setShowForm] = useState(false);
-  const [filter, setFilter] = useState<MeetingStatus | 'ALL'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<MeetingStatus | 'ALL'>('ALL');
+  const [priorityFilter, setPriorityFilter] = useState<MeetingPriority | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Form State
@@ -40,11 +45,13 @@ export default function MeetingManager({ meetings, setMeetings, currentTime }: M
     time: '',
     attendees: '',
     description: '',
-    type: 'Video Call' as MeetingType
+    type: 'Video Call' as MeetingType,
+    priority: 'Standard' as MeetingPriority
   });
 
   const filteredMeetings = meetings
-    .filter(m => (filter === 'ALL' || m.status === filter))
+    .filter(m => (statusFilter === 'ALL' || m.status === statusFilter))
+    .filter(m => (priorityFilter === 'ALL' || m.priority === priorityFilter))
     .filter(m => m.title.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
 
@@ -57,12 +64,13 @@ export default function MeetingManager({ meetings, setMeetings, currentTime }: M
       attendees: formData.attendees.split(',').map(a => a.trim()).filter(a => a),
       description: formData.description,
       type: formData.type,
+      priority: formData.priority,
       status: 'UPCOMING',
       createdAt: new Date().toISOString()
     };
     setMeetings([...meetings, newMeeting]);
     setShowForm(false);
-    setFormData({ title: '', date: '', time: '', attendees: '', description: '', type: 'Video Call' });
+    setFormData({ title: '', date: '', time: '', attendees: '', description: '', type: 'Video Call', priority: 'Standard' });
   };
 
   const deleteMeeting = (id: string) => {
@@ -91,30 +99,53 @@ export default function MeetingManager({ meetings, setMeetings, currentTime }: M
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4 bg-slate-800/30 p-2 rounded-2xl border border-slate-800">
-        <div className="relative flex-1 min-w-[240px]">
+      <div className="flex flex-col gap-4 bg-slate-800/30 p-4 rounded-3xl border border-slate-800">
+        <div className="relative w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input 
             type="text" 
             placeholder="Search meetings..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-900/50 border-none rounded-xl py-2 pl-12 pr-4 text-sm text-slate-200 focus:ring-2 focus:ring-purple-500 transition-all placeholder:text-slate-600"
+            className="w-full bg-slate-900/50 border-none rounded-2xl py-3 pl-12 pr-4 text-sm text-slate-200 focus:ring-2 focus:ring-purple-500 transition-all placeholder:text-slate-600"
           />
         </div>
-        <div className="flex items-center gap-1">
-          {['ALL', 'UPCOMING', 'IN_PROGRESS', 'DONE'].map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(s as any)}
-              className={cn(
-                "px-4 py-2 rounded-xl text-xs font-bold transition-all",
-                filter === s ? "bg-slate-700 text-white" : "text-slate-500 hover:text-slate-300 hover:bg-slate-800"
-              )}
-            >
-              {s}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status:</span>
+            <div className="flex items-center gap-1">
+              {['ALL', 'UPCOMING', 'IN_PROGRESS', 'DONE'].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatusFilter(s as any)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all",
+                    statusFilter === s ? "bg-purple-600 text-white" : "text-slate-500 hover:text-slate-300 hover:bg-slate-800"
+                  )}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="w-px h-4 bg-slate-700 hidden md:block" />
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Priority:</span>
+            <div className="flex items-center gap-1">
+              {['ALL', 'Urgent', 'Important', 'Standard', 'Personal'].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPriorityFilter(p as any)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all",
+                    priorityFilter === p ? "bg-cyan-500 text-white" : "text-slate-500 hover:text-slate-300 hover:bg-slate-800"
+                  )}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -135,19 +166,33 @@ export default function MeetingManager({ meetings, setMeetings, currentTime }: M
                 )}
               >
                 <div className="flex justify-between items-start mb-4">
-                  <div className={cn(
-                    "px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase",
-                    meeting.status === 'DONE' ? "bg-green-500/10 text-green-400" : 
-                    meeting.status === 'IN_PROGRESS' ? "bg-orange-500/10 text-orange-400" : 
-                    "bg-blue-500/10 text-blue-400"
-                  )}>
-                    {meeting.status}
+                  <div className="flex flex-col gap-2">
+                    <div className={cn(
+                      "px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase w-fit",
+                      meeting.status === 'DONE' ? "bg-green-500/10 text-green-400" : 
+                      meeting.status === 'IN_PROGRESS' ? "bg-orange-500/10 text-orange-400" : 
+                      "bg-blue-500/10 text-blue-400"
+                    )}>
+                      {meeting.status}
+                    </div>
+                    <div className={cn(
+                      "px-3 py-1 rounded-full text-[9px] font-bold tracking-widest uppercase w-fit flex items-center gap-1.5",
+                      meeting.priority === 'Urgent' ? "bg-red-500/10 text-red-400" : 
+                      meeting.priority === 'Important' ? "bg-yellow-500/10 text-yellow-400" : 
+                      meeting.priority === 'Personal' ? "bg-cyan-500/10 text-cyan-400" :
+                      "bg-slate-500/10 text-slate-400"
+                    )}>
+                      {meeting.priority === 'Urgent' && <Zap className="w-3 h-3" />}
+                      {meeting.priority === 'Important' && <AlertTriangle className="w-3 h-3" />}
+                      {meeting.priority === 'Personal' && <UserIcon className="w-3 h-3" />}
+                      {meeting.priority}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 text-slate-500">
+                  <div className="flex items-center gap-1.5 text-slate-500 mt-1">
                     {meeting.type === 'Video Call' ? <Video className="w-4 h-4 text-cyan-400" /> : 
                      meeting.type === 'Phone Call' ? <Phone className="w-4 h-4 text-purple-400" /> : 
                      <MapPin className="w-4 h-4 text-orange-400" />}
-                    <span className="text-[10px] font-bold uppercase">{meeting.type}</span>
+                    <span className="text-[9px] font-bold uppercase">{meeting.type}</span>
                   </div>
                 </div>
 
@@ -284,6 +329,30 @@ export default function MeetingManager({ meetings, setMeetings, currentTime }: M
                       >
                         {type === 'Video Call' ? <Video className="w-4 h-4" /> : type === 'Phone Call' ? <Phone className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
                         {type.split(' ')[0]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-1">Priority / Category</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['Urgent', 'Important', 'Standard', 'Personal'].map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setFormData({...formData, priority: p as MeetingPriority})}
+                        className={cn(
+                          "py-3 rounded-xl border text-sm font-medium transition-all flex items-center justify-center gap-2",
+                          formData.priority === p 
+                            ? "bg-cyan-600 border-cyan-500 text-white" 
+                            : "bg-slate-900/50 border-slate-700 text-slate-400 hover:bg-slate-800"
+                        )}
+                      >
+                        {p === 'Urgent' && <Zap className="w-4 h-4" />}
+                        {p === 'Important' && <AlertTriangle className="w-4 h-4" />}
+                        {p === 'Personal' && <UserIcon className="w-4 h-4" />}
+                        {p}
                       </button>
                     ))}
                   </div>

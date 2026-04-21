@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Calendar, CheckCircle2, Clock, StickyNote, ArrowRight, Video, Phone, User } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, StickyNote, ArrowRight, Video, Phone, User, Zap, AlertTriangle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Meeting } from '../types';
 import { cn, formatTime } from '../lib/utils';
@@ -102,13 +102,26 @@ export default function Dashboard({ stats, meetings, onViewMeetings }: Dashboard
                         <span className="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider">
                           {formatTime(meeting.dateTime)}
                         </span>
-                        <div className={cn(
-                          "px-2 py-1 rounded-md text-[10px] font-bold tracking-tighter uppercase",
-                          meeting.status === 'DONE' ? "bg-green-500/10 text-green-400" : 
-                          meeting.status === 'IN_PROGRESS' ? "bg-orange-500/10 text-orange-400" : 
-                          "bg-blue-500/10 text-blue-400"
-                        )}>
-                          {meeting.status}
+                        <div className="flex gap-2">
+                          {meeting.priority !== 'Standard' && (
+                            <div className={cn(
+                              "px-2 py-1 rounded-md text-[9px] font-bold tracking-tighter uppercase flex items-center gap-1",
+                              meeting.priority === 'Urgent' ? "bg-red-500/10 text-red-400" : 
+                              meeting.priority === 'Important' ? "bg-yellow-500/10 text-yellow-400" : 
+                              "bg-cyan-500/10 text-cyan-400"
+                            )}>
+                              {meeting.priority === 'Urgent' ? <Zap className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                              {meeting.priority}
+                            </div>
+                          )}
+                          <div className={cn(
+                            "px-2 py-1 rounded-md text-[9px] font-bold tracking-tighter uppercase",
+                            meeting.status === 'DONE' ? "bg-green-500/10 text-green-400" : 
+                            meeting.status === 'IN_PROGRESS' ? "bg-orange-500/10 text-orange-400" : 
+                            "bg-blue-500/10 text-blue-400"
+                          )}>
+                            {meeting.status}
+                          </div>
                         </div>
                       </div>
                       <h4 className="font-bold text-lg text-white mb-2">{meeting.title}</h4>
@@ -141,12 +154,15 @@ export default function Dashboard({ stats, meetings, onViewMeetings }: Dashboard
         {/* Quick Actions / Summary Right */}
         <div className="space-y-6">
           <div className="p-6 rounded-3xl border border-slate-800 bg-gradient-to-br from-purple-900/20 to-transparent">
-            <h4 className="font-bold text-white mb-4">Quick Tip</h4>
+            <h4 className="font-bold text-white mb-4">Smart Assistant</h4>
             <p className="text-slate-400 text-sm leading-relaxed">
-              Use voice commands to quickly add notes or check your schedule. Just click the mic icon or say "Assistant"!
+              New: Ask about "urgent meetings this week" or "how many meetings next week"! My AI can now filter and count your schedule.
             </p>
-            <button className="mt-4 w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded-xl transition-colors">
-              Try: "Add a note"
+            <button 
+              onClick={onViewMeetings} // Or something else, but let's just make it look good
+              className="mt-4 w-full py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded-xl transition-colors"
+            >
+              Chat with AI
             </button>
           </div>
 

@@ -9,7 +9,7 @@ import {
   Calendar, 
   FileText, 
   StickyNote, 
-  Mic, 
+  MessageSquare, 
   X, 
   Menu,
   Clock,
@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { storageService } from './storageService';
-import { Meeting, DailyNote, VoiceChat, MeetingStatus } from './types';
+import { Meeting, DailyNote, VoiceChat, ChatSession, MeetingStatus } from './types';
 import { cn, getGreeting, formatDate, formatTime } from './lib/utils';
 
 // Views
@@ -35,22 +35,21 @@ type View = 'dashboard' | 'meetings' | 'proceedings' | 'notes' | 'voice';
 export default function App() {
   const [activeView, setActiveView] = useState<View>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [notes, setNotes] = useState<DailyNote[]>([]);
-  const [voiceHistory, setVoiceHistory] = useState<VoiceChat[]>([]);
+  
+  // Use lazy initialization to avoid overwriting storage with empty arrays on mount
+  const [meetings, setMeetings] = useState<Meeting[]>(() => storageService.getMeetings());
+  const [notes, setNotes] = useState<DailyNote[]>(() => storageService.getNotes());
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>(() => storageService.getChatSessions());
+  
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Load data
+  // Clock and general setup
   useEffect(() => {
-    setMeetings(storageService.getMeetings());
-    setNotes(storageService.getNotes());
-    setVoiceHistory(storageService.getVoiceHistory());
-
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Sync with storage
+  // Sync with storage whenever state changes
   useEffect(() => {
     storageService.saveMeetings(meetings);
   }, [meetings]);
@@ -60,8 +59,8 @@ export default function App() {
   }, [notes]);
 
   useEffect(() => {
-    storageService.saveVoiceHistory(voiceHistory);
-  }, [voiceHistory]);
+    storageService.saveChatSessions(chatSessions);
+  }, [chatSessions]);
 
   const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -79,7 +78,7 @@ export default function App() {
     { id: 'meetings', label: 'Meetings', icon: Calendar },
     { id: 'proceedings', label: 'Proceedings', icon: FileText },
     { id: 'notes', label: 'Notes', icon: StickyNote },
-    { id: 'voice', label: 'Voice Assistant', icon: Mic },
+    { id: 'voice', label: 'AI Assistant', icon: MessageSquare },
   ];
 
   return (
@@ -186,8 +185,8 @@ export default function App() {
               )}
               {activeView === 'voice' && (
                 <VoiceAssistantPanel 
-                  history={voiceHistory} 
-                  setHistory={setVoiceHistory}
+                  sessions={chatSessions} 
+                  setSessions={setChatSessions}
                   meetings={meetings}
                   setMeetings={setMeetings}
                   notes={notes}
@@ -203,7 +202,7 @@ export default function App() {
           onClick={() => setActiveView('voice')}
           className="fixed bottom-8 right-8 w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center text-white shadow-2xl shadow-purple-500/40 hover:scale-110 active:scale-95 transition-all z-50 group"
         >
-          <Mic className="w-8 h-8 group-hover:animate-pulse" />
+          <MessageSquare className="w-8 h-8 group-hover:scale-110 transition-transform" />
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-cyan-400 rounded-full border-2 border-[#0f172a]"></div>
         </button>
       </main>
