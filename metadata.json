@@ -1,0 +1,6 @@
+{
+  "name": "SmartAssist – AI Virtual Assistant Dashboard",
+  "description": "A sophisticated virtual assistant dashboard with meeting scheduling, proceedings management, voice assistant capabilities, and daily note-taking.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": []
+}
