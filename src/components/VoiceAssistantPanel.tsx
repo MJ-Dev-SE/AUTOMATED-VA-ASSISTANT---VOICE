@@ -3,10 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef, Dispatch, SetStateAction } from 'react';
-import { 
-  Send, 
-  Trash2, 
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  Dispatch,
+  SetStateAction,
+} from "react";
+import {
+  Send,
+  Trash2,
   Plus,
   Trash,
   History,
@@ -16,12 +22,18 @@ import {
   ChevronRight,
   Volume2,
   X,
-  Loader2
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Meeting, DailyNote, VoiceChat, ChatSession, MeetingStatus } from '../types';
-import { cn } from '../lib/utils';
-import { processAssistantCommand } from '../lib/aiAssistant';
+  Loader2,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  Meeting,
+  DailyNote,
+  VoiceChat,
+  ChatSession,
+  MeetingStatus,
+} from "../types";
+import { cn } from "../lib/utils";
+import { processAssistantCommand } from "../lib/aiAssistant";
 
 interface VoiceAssistantPanelProps {
   sessions: ChatSession[];
@@ -32,8 +44,15 @@ interface VoiceAssistantPanelProps {
   setNotes: Dispatch<SetStateAction<DailyNote[]>>;
 }
 
-export default function VoiceAssistantPanel({ sessions, setSessions, meetings, setMeetings, notes, setNotes }: VoiceAssistantPanelProps) {
-  const [inputText, setInputText] = useState('');
+export default function VoiceAssistantPanel({
+  sessions,
+  setSessions,
+  meetings,
+  setMeetings,
+  notes,
+  setNotes,
+}: VoiceAssistantPanelProps) {
+  const [inputText, setInputText] = useState("");
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isAssistantSpeaking, setIsAssistantSpeaking] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
@@ -45,7 +64,7 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
     if (sessions.length === 0) {
       const newSession: ChatSession = {
         id: Math.random().toString(),
-        title: 'New Chat',
+        title: "New Chat",
         messages: [],
         timestamp: new Date().toISOString(),
       };
@@ -62,7 +81,8 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
     }
   }, [sessions, activeSessionId]);
 
-  const activeSession = sessions.find(s => s.id === activeSessionId) || sessions[0] || { messages: [], title: 'New Chat' };
+  const activeSession = sessions.find((s) => s.id === activeSessionId) ||
+    sessions[0] || { messages: [], title: "New Chat" };
 
   const speak = (text: string) => {
     if (!window.speechSynthesis) return;
@@ -73,7 +93,7 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
     window.speechSynthesis.speak(utterance);
   };
 
-  const addMessage = (role: 'user' | 'assistant', content: string) => {
+  const addMessage = (role: "user" | "assistant", content: string) => {
     if (!activeSessionId) return;
 
     const newMessage: VoiceChat = {
@@ -83,85 +103,129 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
       timestamp: new Date().toISOString(),
     };
 
-    setSessions(prev => prev.map(s => {
-      if (s.id === activeSessionId) {
-        const newMessages = [...s.messages, newMessage];
-        let newTitle = s.title;
-        // Auto-update title on first user message
-        if (role === 'user' && s.messages.length === 0) {
-          newTitle = content.slice(0, 30) + (content.length > 30 ? '...' : '');
+    setSessions((prev) =>
+      prev.map((s) => {
+        if (s.id === activeSessionId) {
+          const newMessages = [...s.messages, newMessage];
+          let newTitle = s.title;
+          // Auto-update title on first user message
+          if (role === "user" && s.messages.length === 0) {
+            newTitle =
+              content.slice(0, 30) + (content.length > 30 ? "..." : "");
+          }
+          return { ...s, messages: newMessages, title: newTitle };
         }
-        return { ...s, messages: newMessages, title: newTitle };
-      }
-      return s;
-    }));
+        return s;
+      }),
+    );
 
-    if (role === 'assistant') {
+    if (role === "assistant") {
       speak(content);
     }
   };
 
   const handleUserCommand = async (command: string) => {
-    setIsThinking(true);
-    
-    // Get last few messages for context
-    const history = activeSession.messages.slice(-10).map(m => ({ 
-      role: m.role, 
-      content: m.content 
-    }));
+    try {
+      console.log("👤 USER COMMAND:", command);
 
-    const result = await processAssistantCommand(
-      command,
-      { 
-        meetings, 
-        notes, 
-        currentTime: new Date().toString() 
-      },
-      history
-    );
+      setIsThinking(true);
 
-    setIsThinking(false);
+      const history = activeSession.messages.slice(-10).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
 
-    // Handle Function Calls
-    if (result.functionCalls) {
-      for (const call of result.functionCalls) {
-        if (call.name === 'addNote') {
-          const { content, color = 'blue' } = call.args as any;
-          const newNote: DailyNote = {
-            id: Math.random().toString(),
-            title: 'AI Note',
-            content,
-            color,
-            timestamp: new Date().toISOString(),
-            pinned: true,
-          };
-          setNotes(prev => [newNote, ...prev]);
-        } else if (call.name === 'markAsDone') {
-          const { meetingId } = call.args as any;
-          setMeetings(prev => prev.map(m => m.id === meetingId ? { ...m, status: 'DONE' } : m));
+      console.log("📜 Sending history:", history);
+
+      const result = await processAssistantCommand(
+        command,
+        {
+          meetings,
+          notes,
+          currentTime: new Date().toString(),
+        },
+        history,
+      );
+
+      console.log("🤖 Assistant RESULT:", result);
+
+      const handledActions: string[] = [];
+
+      if (result.functionCalls) {
+        console.log("⚙️ FUNCTION CALLS DETECTED:", result.functionCalls);
+
+        for (const call of result.functionCalls) {
+          console.log("👉 Processing call:", call);
+
+          if (call.name === "addNote") {
+            const args = (call.args || {}) as any;
+            const { content, color = "blue" } = args;
+
+            if (content) {
+              const newNote: DailyNote = {
+                id: Math.random().toString(),
+                title: "AI Note",
+                content,
+                color,
+                timestamp: new Date().toISOString(),
+                pinned: true,
+              };
+              setNotes((prev) => [newNote, ...prev]);
+              handledActions.push("I added your note.");
+            } else {
+              console.warn("⚠️ addNote missing content:", args);
+            }
+          } else if (call.name === "markAsDone") {
+            const args = (call.args || {}) as any;
+            const { meetingId } = args;
+
+            if (meetingId) {
+              setMeetings((prev) =>
+                prev.map((m) =>
+                  m.id === meetingId ? { ...m, status: "DONE" } : m,
+                ),
+              );
+              handledActions.push("I marked the meeting as done.");
+            } else {
+              console.warn("⚠️ markAsDone missing meetingId:", args);
+            }
+          }
         }
       }
-    }
 
-    if (result.text) {
-      addMessage('assistant', result.text);
+      // 🔥 IMPORTANT: fallback response
+      if (result.text && result.text.trim()) {
+        console.log("🗣️ Using TEXT response");
+        addMessage("assistant", result.text);
+      } else if (handledActions.length > 0) {
+        console.log("🗣️ Using ACTION fallback:", handledActions);
+        addMessage("assistant", handledActions.join(" "));
+      } else {
+        console.warn("⚠️ NO TEXT AND NO ACTION");
+        addMessage("assistant", "Sorry, I did not get a usable response.");
+      }
+    } catch (error) {
+      console.error("❌ handleUserCommand ERROR:", error);
+      addMessage("assistant", "Something went wrong.");
+    } finally {
+      setIsThinking(false);
     }
   };
 
   const handleSendMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputText.trim() || isThinking) return;
-    
+
     const message = inputText.trim();
-    setInputText('');
-    addMessage('user', message);
+    setInputText("");
+    addMessage("user", message);
     handleUserCommand(message);
   };
 
   const createNewSession = () => {
     const newSession: ChatSession = {
       id: Math.random().toString(),
-      title: 'New Chat',
+      title: "New Chat",
       messages: [],
       timestamp: new Date().toISOString(),
     };
@@ -171,12 +235,16 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
   };
 
   const deleteActiveSession = () => {
-    if (window.confirm('Are you sure you want to delete this conversation to trash?')) {
+    if (
+      window.confirm(
+        "Are you sure you want to delete this conversation to trash?",
+      )
+    ) {
       if (sessions.length === 1) {
-        setSessions([{ ...sessions[0], messages: [], title: 'New Chat' }]);
+        setSessions([{ ...sessions[0], messages: [], title: "New Chat" }]);
         return;
       }
-      const newSessions = sessions.filter(s => s.id !== activeSessionId);
+      const newSessions = sessions.filter((s) => s.id !== activeSessionId);
       setSessions(newSessions);
       setActiveSessionId(newSessions[0].id);
     }
@@ -187,7 +255,7 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
       {/* Session History Sidebar */}
       <AnimatePresence>
         {showHistory && (
-          <motion.div 
+          <motion.div
             initial={{ x: -300 }}
             animate={{ x: 0 }}
             exit={{ x: -300 }}
@@ -198,12 +266,15 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
                 <History className="w-4 h-4 text-purple-400" />
                 Chat History
               </h3>
-              <button onClick={() => setShowHistory(false)} className="p-1 hover:bg-slate-800 rounded-lg text-slate-400">
+              <button
+                onClick={() => setShowHistory(false)}
+                className="p-1 hover:bg-slate-800 rounded-lg text-slate-400"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-              {sessions.map(session => (
+              {sessions.map((session) => (
                 <button
                   key={session.id}
                   onClick={() => {
@@ -212,12 +283,14 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
                   }}
                   className={cn(
                     "w-full text-left p-3 rounded-xl transition-all group relative border border-transparent",
-                    activeSessionId === session.id 
-                      ? "bg-purple-600/20 border-purple-500/30 text-white" 
-                      : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                    activeSessionId === session.id
+                      ? "bg-purple-600/20 border-purple-500/30 text-white"
+                      : "text-slate-400 hover:bg-slate-800 hover:text-slate-200",
                   )}
                 >
-                  <p className="text-sm font-medium truncate pr-4">{session.title}</p>
+                  <p className="text-sm font-medium truncate pr-4">
+                    {session.title}
+                  </p>
                   <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-bold">
                     {new Date(session.timestamp).toLocaleDateString()}
                   </p>
@@ -240,7 +313,7 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
         {/* Header */}
         <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/20 backdrop-blur-md z-10">
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => setShowHistory(true)}
               className="p-2 text-slate-400 hover:bg-slate-800 rounded-xl transition-all"
             >
@@ -251,15 +324,26 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
               <BrainCircuit className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white leading-none">Smart Assistant</h3>
+              <h3 className="text-xl font-bold text-white leading-none">
+                Smart Assistant
+              </h3>
               <div className="flex items-center gap-1.5 mt-1">
-                <div className={cn("w-2 h-2 rounded-full", isAssistantSpeaking ? "bg-cyan-500 animate-pulse" : "bg-green-500")}></div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{isAssistantSpeaking ? 'AI Speaking...' : 'Assistant Ready'}</span>
+                <div
+                  className={cn(
+                    "w-2 h-2 rounded-full",
+                    isAssistantSpeaking
+                      ? "bg-cyan-500 animate-pulse"
+                      : "bg-green-500",
+                  )}
+                ></div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  {isAssistantSpeaking ? "AI Speaking..." : "Assistant Ready"}
+                </span>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button 
+            <button
               onClick={createNewSession}
               className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold uppercase tracking-widest rounded-xl transition-all flex items-center gap-2"
               title="New Conversation (Archive past)"
@@ -267,7 +351,7 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
               <Plus className="w-4 h-4" />
               New Convo
             </button>
-            <button 
+            <button
               onClick={deleteActiveSession}
               className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all"
               title="Delete to Trash"
@@ -278,7 +362,7 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
         </div>
 
         {/* Chat History Area */}
-        <div 
+        <div
           ref={scrollRef}
           className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar z-10"
         >
@@ -291,25 +375,40 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 className={cn(
                   "flex gap-4 max-w-[85%]",
-                  chat.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"
+                  chat.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto",
                 )}
               >
-                <div className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1",
-                  chat.role === 'user' ? "bg-slate-700" : "bg-purple-600"
-                )}>
-                  {chat.role === 'user' ? <MessageSquare className="w-4 h-4 text-white" /> : <BrainCircuit className="w-4 h-4 text-white" />}
+                <div
+                  className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1",
+                    chat.role === "user" ? "bg-slate-700" : "bg-purple-600",
+                  )}
+                >
+                  {chat.role === "user" ? (
+                    <MessageSquare className="w-4 h-4 text-white" />
+                  ) : (
+                    <BrainCircuit className="w-4 h-4 text-white" />
+                  )}
                 </div>
-                <div className={cn(
-                  "p-4 rounded-2xl text-sm leading-relaxed",
-                  chat.role === 'user' ? "bg-slate-800 text-slate-200 rounded-tr-none" : "bg-purple-600/20 text-slate-100 border border-purple-500/30 rounded-tl-none shadow-lg shadow-purple-500/5"
-                )}>
+                <div
+                  className={cn(
+                    "p-4 rounded-2xl text-sm leading-relaxed",
+                    chat.role === "user"
+                      ? "bg-slate-800 text-slate-200 rounded-tr-none"
+                      : "bg-purple-600/20 text-slate-100 border border-purple-500/30 rounded-tl-none shadow-lg shadow-purple-500/5",
+                  )}
+                >
                   {chat.content}
-                  <div className={cn(
-                    "text-[9px] font-bold uppercase tracking-widest mt-2 opacity-40",
-                    chat.role === 'user' ? "text-right" : "text-left"
-                  )}>
-                    {new Date(chat.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <div
+                    className={cn(
+                      "text-[9px] font-bold uppercase tracking-widest mt-2 opacity-40",
+                      chat.role === "user" ? "text-right" : "text-left",
+                    )}
+                  >
+                    {new Date(chat.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </div>
                 </div>
               </motion.div>
@@ -324,32 +423,51 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
                 <MessageSquare className="w-12 h-12 text-purple-400 z-10" />
                 <div className="absolute inset-0 border-2 border-purple-500/20 rounded-full animate-ping"></div>
               </motion.div>
-              <h3 className="text-2xl font-bold text-white mb-2">{activeSession.title === 'New Chat' ? 'Ready for a new start?' : activeSession.title}</h3>
-              <p className="text-slate-500 max-w-sm font-medium italic">Type your command below to manage meetings or notes.</p>
+              <h3 className="text-2xl font-bold text-white mb-2">
+                {activeSession.title === "New Chat"
+                  ? "Ready for a new start?"
+                  : activeSession.title}
+              </h3>
+              <p className="text-slate-500 max-w-sm font-medium italic">
+                Type your command below to manage meetings or notes.
+              </p>
             </div>
           )}
         </div>
 
         {/* Input area */}
         <div className="p-6 border-t border-slate-800 bg-[#0f172a]/40 backdrop-blur-md z-10">
-          <form onSubmit={handleSendMessage} className="relative flex items-center gap-3">
-            <input 
+          <form
+            onSubmit={handleSendMessage}
+            className="relative flex items-center gap-3"
+          >
+            <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               disabled={isThinking}
-              placeholder={isThinking ? "Smart Assistant is thinking..." : "How can I assist you today?"}
+              placeholder={
+                isThinking
+                  ? "Smart Assistant is thinking..."
+                  : "How can I assist you today?"
+              }
               className="flex-1 bg-slate-900/50 border border-slate-700/50 rounded-2xl py-4 px-6 text-white text-sm placeholder:text-slate-600 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none disabled:opacity-50"
             />
-            <button 
+            <button
               type="submit"
               disabled={!inputText.trim() || isThinking}
               className={cn(
                 "p-4 rounded-2xl flex items-center justify-center transition-all",
-                inputText.trim() && !isThinking ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20 hover:scale-105 active:scale-95" : "bg-slate-800 text-slate-500"
+                inputText.trim() && !isThinking
+                  ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20 hover:scale-105 active:scale-95"
+                  : "bg-slate-800 text-slate-500",
               )}
             >
-              {isThinking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+              {isThinking ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
             </button>
           </form>
 
@@ -359,25 +477,27 @@ export default function VoiceAssistantPanel({ sessions, setSessions, meetings, s
                 {Array.from({ length: 6 }).map((_, i) => (
                   <motion.div
                     key={i}
-                    animate={{ 
-                      height: isAssistantSpeaking 
-                        ? [2, Math.random() * 12 + 4, 2] 
-                        : 2 
+                    animate={{
+                      height: isAssistantSpeaking
+                        ? [2, Math.random() * 12 + 4, 2]
+                        : 2,
                     }}
-                    transition={{ 
-                      duration: 0.5, 
-                      repeat: Infinity, 
-                      delay: i * 0.1 
+                    transition={{
+                      duration: 0.5,
+                      repeat: Infinity,
+                      delay: i * 0.1,
                     }}
                     className={cn(
                       "w-0.5 rounded-full",
-                      isAssistantSpeaking ? "bg-cyan-400" : "bg-slate-700"
+                      isAssistantSpeaking ? "bg-cyan-400" : "bg-slate-700",
                     )}
                   />
                 ))}
               </div>
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                {isAssistantSpeaking ? 'AI Speaker Active' : 'Assistant Output Ready'}
+                {isAssistantSpeaking
+                  ? "AI Speaker Active"
+                  : "Assistant Output Ready"}
               </span>
             </div>
 

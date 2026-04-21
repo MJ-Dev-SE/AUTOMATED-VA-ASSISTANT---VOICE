@@ -89,7 +89,11 @@ export async function processAssistantCommand(
   history: { role: 'user' | 'assistant', content: string }[]
 ) {
   const model = "gemini-3-flash-preview";
-  
+
+  console.log("🔑 API KEY EXISTS:", !!import.meta.env.VITE_GEMINI_API_KEY);
+  console.log("🧠 Command:", command);
+  console.log("📜 History:", history);
+
   const promptContext = `
 Current Time: ${context.currentTime}
 Active Meetings: ${JSON.stringify(context.meetings)}
@@ -99,10 +103,15 @@ User Instruction: Process the user command following your system instructions an
 `;
 
   try {
+    console.log("🚀 Sending request to Gemini...");
+
     const response = await ai.models.generateContent({
       model,
       contents: [
-        ...history.map(h => ({ role: h.role === 'user' ? 'user' : 'model', parts: [{ text: h.content }] })),
+        ...history.map(h => ({
+          role: h.role === 'user' ? 'user' : 'model',
+          parts: [{ text: h.content }]
+        })),
         { parts: [{ text: promptContext + "\n\nUser: " + command }] }
       ],
       config: {
@@ -112,15 +121,22 @@ User Instruction: Process the user command following your system instructions an
       },
     });
 
+    console.log("✅ Gemini RAW response:", response);
+    console.log("📝 Gemini text:", response.text);
+    console.log("⚙️ Gemini functionCalls:", response.functionCalls);
+
     return {
       text: response.text || "",
       functionCalls: response.functionCalls,
     };
+
   } catch (error) {
-    console.error("AI Assistant Error:", error);
+    console.error("❌ AI Assistant Error:", error);
+
     return {
-      text: "I'm having trouble connecting to my brain right now. Can you try again?",
+      text: "I'm having trouble connecting to my brain right now.",
       functionCalls: undefined
     };
   }
+
 }
